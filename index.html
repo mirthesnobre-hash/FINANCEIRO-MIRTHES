@@ -3056,12 +3056,14 @@ function telaLogin(){
     box.innerHTML = `<div class="card" style="max-width:360px;width:100%;margin:0"><h3 class="card-title">🔐 Entrar</h3>
       <input id="lgEmail" placeholder="e-mail" style="${est}"><input type="password" id="lgSenha" placeholder="senha" style="${est}">
       <div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" id="lgEntrar">Entrar</button><button class="btn ghost" id="lgCriar">Criar conta</button></div>
-      <div class="footnote" id="lgMsg"></div></div>`;
+      <div class="footnote" id="lgMsg"></div>
+      <button class="dv-link" id="lgCfg" style="margin-top:10px">🔑 Trocar a URL / chave do Supabase</button></div>`;
     document.body.appendChild(box);
+    box.querySelector('#lgCfg').onclick = () => { localStorage.removeItem('fin-sb-config'); location.reload(); };
     const msg = t => box.querySelector('#lgMsg').textContent = t;
     const cred = () => ({ email: box.querySelector('#lgEmail').value.trim(), password: box.querySelector('#lgSenha').value });
-    box.querySelector('#lgEntrar').onclick = async () => { const { data, error } = await sb.auth.signInWithPassword(cred()); if (error) return msg('Não foi possível entrar: ' + error.message); box.remove(); resolve(data.session); };
-    box.querySelector('#lgCriar').onclick = async () => { const { data, error } = await sb.auth.signUp(cred()); if (error) return msg('Erro ao criar conta: ' + error.message); if (data.session){ box.remove(); resolve(data.session); } else msg('Conta criada. Confirme o e-mail (se exigido) e clique em Entrar.'); };
+    box.querySelector('#lgEntrar').onclick = async () => { const { data, error } = await sb.auth.signInWithPassword(cred()); if (error) return msg(/api key/i.test(error.message) ? '⚠️ A chave do Supabase está errada. Toque em 🔑 Trocar a URL / chave e cole de novo.' : 'Não foi possível entrar: ' + error.message); box.remove(); resolve(data.session); };
+    box.querySelector('#lgCriar').onclick = async () => { const { data, error } = await sb.auth.signUp(cred()); if (error) return msg(/api key/i.test(error.message) ? '⚠️ A chave do Supabase está errada. Toque em 🔑 Trocar a URL / chave e cole de novo.' : 'Erro ao criar conta: ' + error.message); if (data.session){ box.remove(); resolve(data.session); } else msg('Conta criada. Confirme o e-mail (se exigido) e clique em Entrar.'); };
   });
 }
 async function migrarLocalParaSupabase(){
@@ -3080,13 +3082,14 @@ function telaConfig(){
     box.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px';
     const est = 'width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;margin-top:6px';
     box.innerHTML = `<div class="card" style="max-width:440px;width:100%;margin:0"><h3 class="card-title">☁️ Conectar ao Supabase</h3>
-      <div class="footnote" style="margin:0 0 10px">Project Settings → API. Use só a chave <b>anon public</b>. Fica salvo neste navegador.</div>
-      <input id="cfUrl" placeholder="URL do projeto (https://xxxx.supabase.co)" style="${est}"><input id="cfKey" placeholder="anon public key" style="${est}">
+      <div class="footnote" style="margin:0 0 10px">No Supabase: botão <b>Connect</b> ou ⚙ Project Settings → API Keys. Use só a chave <b>publishable</b> (sb_publishable_…) ou <b>anon public</b>. Nunca a secret.</div>
+      <input id="cfUrl" placeholder="URL do projeto (https://xxxx.supabase.co)" style="${est}"><input id="cfKey" placeholder="chave sb_publishable_… ou anon" style="${est}">
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn primary" id="cfOk">Salvar e continuar</button><button class="btn ghost" id="cfLocal">Usar só neste navegador</button></div>
       <div class="footnote" id="cfMsg"></div></div>`;
     document.body.appendChild(box);
     box.querySelector('#cfOk').onclick = () => {
-      const url = box.querySelector('#cfUrl').value.trim(), key = box.querySelector('#cfKey').value.trim();
+      const limpa = v => v.replace(/^.*?=/, m => /^[A-Z_]+=/.test(m) ? '' : m).replace(/["'\s]/g, '');
+      const url = limpa(box.querySelector('#cfUrl').value).replace(/\/+$/, ''), key = limpa(box.querySelector('#cfKey').value);
       if (!/^https:\/\/.+/.test(url) || key.length < 20) return box.querySelector('#cfMsg').textContent = 'Confira a URL e a chave.';
       localStorage.setItem('fin-sb-config', JSON.stringify({ url, key })); box.remove(); resolve({ url, key });
     };
